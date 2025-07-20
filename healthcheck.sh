@@ -2,6 +2,63 @@
 
 source "/config/icloudpd.conf"
 
+# Check download health - monitor for filesystem activity
+check_download_health()
+{
+   local current_time last_activity_time time_diff download_health_timeout_val
+   
+   # Get the configured timeout value, default to 7200 seconds (2 hours) if not set
+   download_health_timeout_val="${download_health_timeout:-7200}"
+   
+   # Skip health check if disabled (timeout set to 0)
+   if [ "${download_health_timeout_val}" -eq 0 ]
+   then
+      return 0
+   fi
+   
+   current_time="$(date +%s)"
+   
+   # Look for download activity timestamps
+   if [ -f "/tmp/icloudpd/last_download_activity" ]
+   then
+      last_activity_time="$(cat /tmp/icloudpd/last_download_activity 2>/dev/null || echo 0)"
+   else
+      # If no timestamp file exists, check if there's any download activity in the current log
+      if [ -f "/tmp/icloudpd/icloudpd_sync.log" ]
+      then
+         # Check if there are any "Downloaded /" entries, indicating recent activity
+         if grep -q "Downloaded /" /tmp/icloudpd/icloudpd_sync.log 2>/dev/null
+         then
+            # Update the timestamp and continue
+            echo "${current_time}" > /tmp/icloudpd/last_download_activity
+            return 0
+         fi
+      fi
+      
+      # No activity file and no recent downloads - create initial timestamp
+      echo "${current_time}" > /tmp/icloudpd/last_download_activity
+      return 0
+   fi
+   
+   # Calculate time difference
+   time_diff="$((current_time - last_activity_time))"
+   
+   # Check if we've exceeded the timeout
+   if [ "${time_diff}" -gt "${download_health_timeout_val}" ]
+   then
+      # Check if container is supposed to be actively downloading
+      # Look for signs that a sync process should be running but is stuck
+      if [ -f "/tmp/icloudpd/icloudpd_sync.log" ]
+      then
+         # If log file exists but no recent downloads and timeout exceeded
+         echo "Download health check failed: No filesystem activity for ${time_diff} seconds (timeout: ${download_health_timeout_val}s)"
+         exit 2
+      fi
+   fi
+   
+   return 0
+}
+
 if [ -f "/tmp/icloudpd/icloudpd_check_exit_code" ] || [ -f "/tmp/icloudpd/icloudpd_download_exit_code" ]
 then
    if [ -f "/tmp/icloudpd/icloudpd_download_exit_code" ]
@@ -43,6 +100,9 @@ then
       exit 1
    fi
 fi
+
+# Run download health check
+check_download_health
 
 cookie="$(echo -n "${apple_id//[^a-zA-Z0-9_]}" | tr '[:upper:]' '[:lower:]')"
 if [ ! -f "/config/${cookie}" ]
