@@ -23,6 +23,8 @@ Currently, I only reccomend setting one container environment variable, TZ, as t
 
 **download_interval**: This is the number of seconds between downloads. It can be set to the following periods: 21600 (6hrs), 43200 (12hrs), 86400 (24hrs), 129600 (36hrs), 172800 (48hrs) and 604800 (7 days). If this configuration option is not set to one of these values, it will default to 86400 seconds. Be careful if setting a short download period. Apple have a tendency to throttle connections that are hitting their server too often. I find that every 24hrs is fine. My phone will upload files to the cloud immediately, so if I lose my phone the photos I've taken that day will still be safe in the cloud, and the container will download those photos when it runs in the evening. Setting a value less than 12 hours will display a warning as Apple may throttle you.
 
+**download_health_timeout**: This is the number of seconds to wait for download activity before restarting the container. If no filesystem write activity (actual file downloads) is detected within this period, the health check will fail and trigger a container restart. This helps detect stuck download processes. Set to 0 to disable this health check. Default: 7200 seconds (2 hours).
+
 **download_delay**: This is the number of minutes to delay the first download. This is so that you can stagger the downloads of multiple containers. Default: 0. It has a maximum setting of 60.
 
 **notification_days**: When your cookie is nearing expiration, this is the number of days in advance it should notify you. You will receive a single notification, per day, in the days running up to cookie expiration. Default: 7.

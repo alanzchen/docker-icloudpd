@@ -90,6 +90,12 @@ initialise_script()
    log_info " | File Match Policy: ${file_match_policy}"
    log_info " | Download interval: ${download_interval}"
    log_info " | Download delay (minutes): ${download_delay}"
+   if [ "${download_health_timeout:-7200}" -eq 0 ]
+   then
+      log_info " | Download health timeout: Disabled"
+   else
+      log_info " | Download health timeout: ${download_health_timeout:-7200} seconds"
+   fi
    log_info " | Set EXIF date/time: ${set_exif_datetime}"
    log_info " | Auto delete: ${auto_delete}"
    log_info " | Delete after download: ${delete_after_download}"
@@ -865,6 +871,9 @@ downloaded_files_notification()
    if [ "${new_files_count:=0}" -gt 0 ]
    then
       log_info "New files downloaded: ${new_files_count}"
+      # Update download activity timestamp for health check
+      echo "$(date +%s)" > /tmp/icloudpd/last_download_activity
+      log_debug "Updated download activity timestamp after successful downloads"
       new_files_preview="$(echo "${new_files}" | cut --delimiter " " --fields 9- | sed -e "s%${download_path}/%%g" | head -10)"
       new_files_preview_count="$(echo "${new_files_preview}" | wc -l)"
       if [ "${icloud_china}" = false ]
@@ -2129,7 +2138,7 @@ synchronise_user()
       download_start_time="$(date +'%s')"
       download_time="$(date +%s -d '+15 minutes')"
       log_info "Download starting at $(date +%H:%M:%S -d "@${download_start_time}")"
-      source <(grep debug_logging "${config_file}")
+      debug_logging="$(grep "^debug_logging=" "${config_file}" | cut -d= -f2)"
       chown -R "${user_id}:${group_id}" "/config"
       check_keyring_exists
       if [ "${authentication_type}" = "MFA" ]
@@ -2155,6 +2164,9 @@ synchronise_user()
          then
             log_debug "Starting download of new files for user: ${user}"
             log_debug "Downloading new files using password stored in keyring file..."
+            # Update download activity timestamp for health check
+            echo "$(date +%s)" > /tmp/icloudpd/last_download_activity
+            log_debug "Updated download activity timestamp for health monitoring"
             >/tmp/icloudpd/icloudpd_download_error
             IFS=$'\n'
             if [ "${photo_album}" ]

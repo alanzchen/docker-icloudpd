@@ -302,6 +302,10 @@ fi
    then
       echo download_interval="${download_interval:=86400}"
    fi
+   if [ "$(grep -c "^download_health_timeout=" "${config_file}")" -eq 0 ]
+   then
+      echo download_health_timeout="${download_health_timeout:=7200}"
+   fi
    if [ "$(grep -c "^synology_ignore_path=" "${config_file}")" -eq 0 ]
    then
       echo synology_ignore_path="${synology_ignore_path:=false}"
@@ -639,6 +643,10 @@ if [ -z "$(grep "^download_interval=" "${config_file}" | awk -F= '{print $2}')" 
 then
    sed -i "s%^download_interval=$%download_interval=86400%" "${config_file}"
 fi
+if [ -z "$(grep "^download_health_timeout=" "${config_file}" | awk -F= '{print $2}')" ]
+then
+   sed -i "s%^download_health_timeout=$%download_health_timeout=7200%" "${config_file}"
+fi
 if [ -z "$(grep "^synology_ignore_path=" "${config_file}" | awk -F= '{print $2}')" ]
 then
    sed -i "s%^synology_ignore_path=$%synology_ignore_path=false%" "${config_file}"
@@ -961,6 +969,10 @@ fi
 if [ "${download_interval}" ]
 then
    sed -i "s%^download_interval=.*%download_interval=${download_interval}%" "${config_file}"
+fi
+if [ "${download_health_timeout}" ]
+then
+   sed -i "s%^download_health_timeout=.*%download_health_timeout=${download_health_timeout}%" "${config_file}"
 fi
 if [ "${synology_ignore_path}" ]
 then
